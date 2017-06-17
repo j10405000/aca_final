@@ -48,6 +48,7 @@ package object AcaCustom
         io.core_port.resp.valid <> io.mem_port.resp.valid
         io.core_port.resp.bits.data := read_data
         io.core_port.resp.bits.burst_data := Bits(0)
+	
 
         val DCACHE_ENTRIES = 1024
         val DCACHE_ENTRIES_BIT = 10
@@ -67,15 +68,15 @@ package object AcaCustom
         when(dcache_write_en){
             dcache(dcache_write_addr) := dcache_write_data
         }
-        when(io.core_port.req.valid && io.core_port.req.bits.fcn === M_XRD){
-        
-        }
         val dcache_read_out = dcache(dcache_read_addr)
         val dcache_read_data = Bits(width=conf.xprlen)
         
         val tag = io.core_port.req.bits.addr(31,16)
         val index = io.core_port.req.bits.addr(15,6)
         val offset = io.core_port.req.bits.addr(5,2)
+	dcache_read_addr := index
+        when(req_valid && req_fcn === M_XRD){
+        }
         
     }
 
