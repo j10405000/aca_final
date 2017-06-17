@@ -39,7 +39,7 @@ package object AcaCustom
 
         val byte_idx_in_word = req_addr(word_len_bit - 1, 0)
         val read_data = LoadDataGen(word_data >> (byte_idx_in_word << 3), io.core_port.req.bits.typ)
-        
+         
         
         // Wiring
         io.mem_port.req.valid <> io.core_port.req.valid
@@ -48,11 +48,12 @@ package object AcaCustom
         io.mem_port.req.bits.data <> io.core_port.req.bits.data
         io.mem_port.req.bits.fcn <> io.core_port.req.bits.fcn
         io.mem_port.req.bits.typ <> io.core_port.req.bits.typ
-
+        
+        
         io.core_port.resp.valid <> io.mem_port.resp.valid
         io.core_port.resp.bits.data := read_data
         io.core_port.resp.bits.burst_data := Bits(0)
-
+        
         val DCACHE_ENTRIES = 1024
         val DCACHE_ENTRIES_BIT = 10
         val DCACHE_TAG_BIT = conf.xprlen-DCACHE_ENTRIES_BIT-burst_len_bit
@@ -80,12 +81,13 @@ package object AcaCustom
         dcache_read_addr := index
 
         //read access
+        /*
         when(req_valid && req_fcn === M_XRD){
             when(dcache_read_out(DCACHE_BITS-1,DCACHE_BITS-DCACHE_TAG_BIT)  tag){
 
             }
-        }
-
+        }*/
+        
     }
 
     type DCache = NoDCache2
