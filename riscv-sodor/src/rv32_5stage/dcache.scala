@@ -51,7 +51,8 @@ package object AcaCustom
 
         val DCACHE_ENTRIES = 1024
         val DCACHE_ENTRIES_BIT = 10
-        val DCACHE_BITS = 1+(conf.xprlen-DCACHE_ENTRIES_BIT-burst_len_bit)+burst_len*8
+        val DCACHE_TAG_BIT = conf.xprlen-DCACHE_ENTRIES_BIT-burst_len_bit
+        val DCACHE_BITS = 1+DCACHE_TAG_BIT+burst_len*8
         //valid bit + tag + data bit
         
         val dcache = Mem(Bits(width=DCACHE_BITS), DCACHE_ENTRIES)
@@ -67,7 +68,11 @@ package object AcaCustom
             dcache(dcache_write_addr) := dcache_write_data
         }
         val dcache_read_out = dcache(dcache_read_addr)
-        val btb_read_data = Bits(width=DCACHE_BITS)
+        val dcache_read_data = Bits(width=conf.xprlen)
+        
+        val tag = io.core_port.req.bits.addr(31,16)
+        val index = io.core_port.req.bits.addr(15,6)
+        val offset = io.core_port.req.bits.addr(5,2)
         
     }
 
