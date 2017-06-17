@@ -1,11 +1,11 @@
 # Declaration of common variables
 
 RISCV           := /usr/local
-srcDir          := /home/jim/aca_final/riscv-sodor
+srcDir          := /home/yao/桌面/M1-2/ACA2017/aca_final/riscv-sodor
 installTop      := $(DESTDIR)$(RISCV)
 buildIncludeDir := $(RISCV)/include
 buildLibDir     := $(RISCV)/lib
-buildDir        := /home/jim/aca_final/riscv-sodor
+buildDir        := /home/yao/桌面/M1-2/ACA2017/aca_final/riscv-sodor
 
 # Paths to different source trees
 chiseldir       := 
