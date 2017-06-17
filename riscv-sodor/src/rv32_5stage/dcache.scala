@@ -57,18 +57,17 @@ package object AcaCustom
         val dcache = Mem(Bits(width=DCACHE_BITS), DCACHE_ENTRIES)
         val dcache_write_addr = UInt(width=DCACHE_ENTRIES_BIT)
         val dcache_write_en = Bool()
-        val dcache_write_data = Unit(width=DCACHE_BITS)
+        val dcache_write_data = UInt(width=DCACHE_BITS)
         val dcache_read_addr = UInt(width=DCACHE_ENTRIES_BIT)
-        dcache_write_addr = UInt(0)
-        dcache_write_en = Bool(false)
-        dcache_write_data = Unit(0)
-        dcache_read_addr = UInt(0)
+        dcache_write_addr := UInt(0)
+        dcache_write_en := Bool(false)
+        dcache_write_data := UInt(0)
+        dcache_read_addr := UInt(0)
         when(dcache_write_en){
             dcache(dcache_write_addr) := dcache_write_data
         }
         val dcache_read_out = dcache(dcache_read_addr)
         val btb_read_data = Bits(width=DCACHE_BITS)
-        //test2
         
     }
 
