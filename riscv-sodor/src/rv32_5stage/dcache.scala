@@ -26,7 +26,11 @@ package object AcaCustom
         val word_len = 4      // 4 byte per word
         val word_len_bit = 2  // 2^2 = 4
 
-        val req_addr = io.core_port.req.bits.addr
+        val req_valid      = io.core_port.req.valid
+        val req_addr       = io.core_port.req.bits.addr
+        val req_data       = io.core_port.req.bits.data
+        val req_fcn        = io.core_port.req.bits.fcn
+        val req_typ        = io.core_port.req.bits.typ
         val burst_data = io.mem_port.resp.bits.burst_data
 
         val word_idx_in_burst = req_addr(burst_len_bit - 1, word_len_bit)
@@ -48,6 +52,7 @@ package object AcaCustom
         io.core_port.resp.valid <> io.mem_port.resp.valid
         io.core_port.resp.bits.data := read_data
         io.core_port.resp.bits.burst_data := Bits(0)
+        
 
         val DCACHE_ENTRIES = 1024
         val DCACHE_ENTRIES_BIT = 10
@@ -67,16 +72,21 @@ package object AcaCustom
         when(dcache_write_en){
             dcache(dcache_write_addr) := dcache_write_data
         }
-        when(io.core_port.req.valid && io.core_port.req.bits.fcn === M_XRD){
-        
-        }
         val dcache_read_out = dcache(dcache_read_addr)
         val dcache_read_data = Bits(width=conf.xprlen)
         
-        val tag = io.core_port.req.bits.addr(31,16)
-        val index = io.core_port.req.bits.addr(15,6)
-        val offset = io.core_port.req.bits.addr(5,2)
-        
+        val tag = req_addr(31,16)
+        val index = req_addr(15,6)
+        val offset = req_addr(5,2)
+        dcache_read_addr := index
+
+        //read access
+        when(req_valid && req_fcn === M_XRD){
+            when(dcache_read_out(DCACHE_BITS-1,DCACHE_BITS-DCACHE_TAG_BIT)  tag){
+
+            }
+        }
+
     }
 
     type DCache = NoDCache2
