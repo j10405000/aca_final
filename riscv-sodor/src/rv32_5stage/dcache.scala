@@ -67,6 +67,9 @@ package object AcaCustom
         when(dcache_write_en){
             dcache(dcache_write_addr) := dcache_write_data
         }
+        when(io.core_port.req.valid && io.core_port.req.bits.fcn === M_XRD){
+        
+        }
         val dcache_read_out = dcache(dcache_read_addr)
         val dcache_read_data = Bits(width=conf.xprlen)
         
