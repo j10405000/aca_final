@@ -73,7 +73,7 @@ package object AcaCustom
             dcache(dcache_write_addr) := dcache_write_data
         }
         val dcache_read_out = dcache(dcache_read_addr)
-	val dcache_read_burst = Bits(width=burst_len*8)
+	val dcache_read_burst = Vec.fill(16){Bits(width=conf.xprlen)}
         val dcache_read_data = Bits(width=conf.xprlen)
         
         val tag = req_addr(31,16)
@@ -81,28 +81,27 @@ package object AcaCustom
         val word_offset = req_addr(5,2)
 	val byte_offset = req_addr(1,0)
         dcache_read_addr := index
-
+	dcache_write_data(DCACHE_BITS-1,DCACHE_BITS-1) := Bits(1,1)
+	dcache_write_data(DCACHE_BITS-2,DCACHE_BITS-11) := tag
+	
+	for(k <- 0 until 16){
+		dcache_write_data(511-31*k,480-31*k) := burst_data(k)
+	}
         //read access
         /*when(req_valid && req_fcn === M_XRD){
 	    
         }*/
 	//when(io.core_port.resp.valid){
             io.mem_port.resp.valid <> io.core_port.resp.valid
-	    //dcache.write(index, Cat(Bits(1,1), tag, burst_data))	
-	    dcache_write_addr := index
-	    dcache_write_data := Cat(Bits(1,1), tag, burst_data)
+	    dcache.write(index, dcache_write_data)	
 	    //read out burst data
-	    dcache_read_burst := dcache_read_out(DCACHE_BITS-1-1-DCACHE_TAG_BIT,0) 
+	    for(k <- 0 until 16){
+	    	dcache_read_burst(k) := dcache_read_out(511-31*k,480-31*k) 
+	    }
 	    //read out word data
-            
-      //      word_data := 
-        //        Mux1H(UIntToOH(word_offset, width=(burst_len / word_len)), dcache_read_burst)
-
-          //  read_data := LoadDataGen(word_data >> (byte_offset << 3), req_typ)
-        val word_data = 
-            Mux1H(UIntToOH(word_offset, width=(burst_len / word_len)),dcache_read_burst)
-
-        val read_data = LoadDataGen(word_data >> (byte_offset << 3), req_typ)
+            val word_data = 
+                Mux1H(UIntToOH(word_offset, width=(burst_len / word_len)),dcache_read_burst)
+            val read_data = LoadDataGen(word_data >> (byte_offset << 3), req_typ)
             io.core_port.resp.bits.data := read_data
 	    
 
