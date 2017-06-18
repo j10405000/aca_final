@@ -16,3 +16,4 @@ install/share
 sbt/*/target
 */target
 *.log
+config*

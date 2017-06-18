@@ -31,15 +31,19 @@ package object AcaCustom
         val req_data       = io.core_port.req.bits.data
         val req_fcn        = io.core_port.req.bits.fcn
         val req_typ        = io.core_port.req.bits.typ
-        val burst_data = io.mem_port.resp.bits.burst_data
+        val burst_data     = io.mem_port.resp.bits.burst_data
+        val word_idx_in_burst = req_addr(burst_len_bit - 1, word_len_bit)
+        val word_data_ori = 
+            Mux1H(UIntToOH(word_idx_in_burst, width=(burst_len / word_len)), burst_data)
 
-       // val word_idx_in_burst = req_addr(burst_len_bit - 1, word_len_bit)
-       // val word_data = 
-       //     Mux1H(UIntToOH(word_idx_in_burst, width=(burst_len / word_len)), burst_data)
-
-       // val byte_idx_in_word = req_addr(word_len_bit - 1, 0)
-       // val read_data = LoadDataGen(word_data >> (byte_idx_in_word << 3), io.core_port.req.bits.typ)
-        
+        val byte_idx_in_word = req_addr(word_len_bit - 1, 0)
+        val read_data_ori = LoadDataGen(word_data_ori >> (byte_idx_in_word << 3), io.core_port.req.bits.typ)
+        when(io.mem_port.resp.valid){
+            for(i <- 0 until 16)
+                printf("burst data %d: %x\n", UInt(i),burst_data(i))
+            
+            printf("offset:%x ,read data ori: %x\n",word_idx_in_burst, read_data_ori)
+        }
         
         // Wiring
         io.mem_port.req.valid <> io.core_port.req.valid
@@ -76,7 +80,7 @@ package object AcaCustom
         val dcache_read_burst = Vec.fill(16){Bits(width=conf.xprlen)}
         val dcache_read_data = Bits(width=conf.xprlen)
 
-        val counter = Counter(2)
+        val counter = Counter(1)
         val s_idle :: s_write :: s_load :: s_valid :: Nil = Enum(UInt(),4)
         val state = Reg(init = s_idle)
 
@@ -93,79 +97,66 @@ package object AcaCustom
         word_data := Mux1H(UIntToOH(word_offset, width=(burst_len / word_len)),dcache_read_burst)
         read_data := LoadDataGen(word_data >> (byte_offset << 3), req_typ)
     
-    for(k <- 0 until 16){
-        dcache_write_data(511-31*k,480-31*k) := Bits(0)
-    }
-    for(k <- 0 until 16){
-        dcache_read_burst(k) := Bits(0) 
-    }
+        for(k <- 0 until 16)
+        {
+         dcache_read_burst(k) := Bits(0) 
+        }
         //read access
         /*when(req_valid && req_fcn === M_XRD){
     
         }*/
-    io.core_port.req.ready := Bool(true)
-    io.core_port.resp.valid := Bool(false)
+        io.core_port.req.ready := Bool(true)
+        io.core_port.resp.valid := Bool(false)
         io.core_port.resp.bits.data := read_data        
-    switch(state){
-        is(s_idle){
-            io.core_port.req.ready := Bool(true)
-            io.core_port.resp.valid := Bool(false)
-        when ( io.mem_port.resp.valid )
+        switch(state)
         {
-            state := s_write
-        }
-        }
-        is(s_write){
-            io.core_port.req.ready := Bool(false)
-            io.core_port.resp.valid := Bool(false)
-        for(k <- 0 until 16){
-                dcache_write_data(511-31*k,480-31*k) := burst_data(k)
+            is(s_idle)
+            {
+                io.core_port.req.ready := Bool(true)
+                io.core_port.resp.valid := Bool(false)
+                when ( io.mem_port.resp.valid )
+                {
+                    for(k <- 0 until 16)
+                    {
+                        dcache_write_data(32*k+31,32*k) := burst_data(k)
+                    }
+                    when(io.mem_port.resp.valid){
+                        printf("dcache_write_data: %x\n",dcache_write_data(DCACHE_BITS-1,0))
+                    }
+                    dcache.write(index, dcache_write_data)      
+                    state := s_load 
+                }
             }
-        dcache.write(index, dcache_write_data)      
-        when(counter.inc()){
-            state := s_load 
-        }
-        }
-        is(s_load){
-            io.core_port.req.ready := Bool(false)
-            io.core_port.resp.valid := Bool(false)
-            //read out burst data
-            for(k <- 0 until 16){
-                dcache_read_burst(k) := dcache_read_out(511-31*k,480-31*k) 
-            }
-        state := s_valid
-        }
-        is(s_valid){
-            io.core_port.req.ready := Bool(false)
-            io.core_port.resp.valid := Bool(true)
-            word_data := Mux1H(UIntToOH(word_offset, width=(burst_len / word_len)),dcache_read_burst)
-            read_data := LoadDataGen(word_data >> (byte_offset << 3), req_typ)
+            is(s_load)
+            {
+                io.core_port.req.ready := Bool(false)
+                io.core_port.resp.valid := Bool(false)
+                //read out burst data
+                for(k <- 0 until 16)
+                {
+                    dcache_read_burst(k) := dcache_read_out(32*k+31,32*k) 
+                    printf("dcache_read_out %d: %x\n",UInt(k),dcache_read_out(32*k+31,32*k))
+                }
+                state := s_valid
+             }
+            is(s_valid)
+            {
+                io.core_port.req.ready := Bool(false)
+                io.core_port.resp.valid := Bool(true)
+                for(k <- 0 until 16)
+                {
+                    dcache_read_burst(k) := dcache_read_out(32*k+31,32*k) 
+                    printf("valid state: dcache_read_out %d: %x\n",UInt(k),dcache_read_burst(k))
+                }
+                word_data := Mux1H(UIntToOH(word_offset, width=(burst_len / word_len)),dcache_read_burst)
+                read_data := LoadDataGen(word_data >> (byte_offset << 3), req_typ)
+                printf("read data: %x\n", read_data)
                 io.core_port.resp.bits.data := read_data        
-        state := s_idle
+                state := s_idle
+            }
         }
 
-/*
-
-        
-        //when(io.core_port.resp.valid){
-                io.mem_port.resp.valid <> io.core_port.resp.valid
-            dcache.write(index, dcache_write_data)  
-            //read out burst data
-            for(k <- 0 until 16){
-                dcache_read_burst(k) := dcache_read_out(511-31*k,480-31*k) 
-            }
-            //read out word data
-                val word_data = 
-                    Mux1H(UIntToOH(word_offset, width=(burst_len / word_len)),dcache_read_burst)
-                val read_data = LoadDataGen(word_data >> (byte_offset << 3), req_typ)
-                io.core_port.resp.bits.data := read_data
-           
-
-       //}
-*/
-    }
-
-    }
+}
 
     type DCache = NoDCache2
 
