@@ -31,13 +31,6 @@ package object AcaCustom
         val req_data       = io.core_port.req.bits.data
         val req_fcn        = io.core_port.req.bits.fcn
         val req_typ        = io.core_port.req.bits.typ
-        
-        val req_valid_reg      = Reg(Bool())
-        val req_addr_reg       = Reg(Bits())
-        val req_data_reg       = Reg(Bits())         
-        val req_fcn_reg        = Reg(Bits())
-        val req_typ_reg        = Reg(Bits())
-        
         val burst_data     = io.mem_port.resp.bits.burst_data
         val word_idx_in_burst = req_addr(burst_len_bit - 1, word_len_bit)
         val word_data_ori = 
@@ -53,24 +46,17 @@ package object AcaCustom
         }
         
         // Wiring
-        /*
         io.mem_port.req.valid <> io.core_port.req.valid
         io.mem_port.req.ready <> io.core_port.req.ready
         io.mem_port.req.bits.addr <> io.core_port.req.bits.addr
         io.mem_port.req.bits.data <> io.core_port.req.bits.data
         io.mem_port.req.bits.fcn <> io.core_port.req.bits.fcn
         io.mem_port.req.bits.typ <> io.core_port.req.bits.typ
-        */
-        /*  
-        io.core_port.resp.valid <> io.mem_port.resp.valid
-        io.core_port.resp.bits.data := read_data
-        io.core_port.resp.bits.burst_data := Bits(0)
-        */
-        io.mem_port.req.valid := Bool(false)
-        io.mem_port.req.bits.addr := Bits(0)
-        io.mem_port.req.bits.data := Bits(0)
-        io.mem_port.req.bits.fcn := Bits(0)
-        io.mem_port.req.bits.typ := Bits(0)
+        
+
+        //io.core_port.resp.valid <> io.mem_port.resp.valid
+        //io.core_port.resp.bits.data := read_data
+        //io.core_port.resp.bits.burst_data := Bits(0)
 
         val DCACHE_ENTRIES = 1024
         val DCACHE_ENTRIES_BIT = 10
@@ -119,17 +105,6 @@ package object AcaCustom
         /*when(req_valid && req_fcn === M_XRD){
     
         }*/
-        /*
-        val test_data = Bits(15,32)
-        val write_mask = Bits(0xffffffffL, 32)
-        //write access
-        when(req_valid && req_fcn === M_XWR){
-            //dcache_write_data(UInt(word_offset)*32+31,UInt(word_offset)*32) := test_data
-            dcache.write(index, test_data , write_mask << (word_offset<<5))
-            printf("!!write access, test_data: %x word_offset: %x \n dcache_read_out: %x\n",test_data,word_offset,dcache_read_out)
-            index_reg := index
-        }*/
-
         io.core_port.req.ready := Bool(true)
         io.core_port.resp.valid := Bool(false)
         io.core_port.resp.bits.data := read_data        
@@ -139,14 +114,6 @@ package object AcaCustom
             {
                 io.core_port.req.ready := Bool(true)
                 io.core_port.resp.valid := Bool(false)
-                when ( io.core_port.req.valid )
-                {
-                    io.mem_port.req.valid := Bool(true)
-                    io.mem_port.req.bits.addr := io.core_port.req.bits.addr
-                    io.mem_port.req.bits.data := io.core_port.req.bits.data
-                    io.mem_port.req.bits.fcn := io.core_port.req.bits.fcn
-                    io.mem_port.req.bits.typ := io.core_port.req.bits.typ
-                }
                 when ( io.mem_port.resp.valid )
                 {
                     for(k <- 0 until 16)
