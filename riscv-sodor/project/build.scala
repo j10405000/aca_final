@@ -20,17 +20,17 @@ object BuildSettings extends Build {
   )
 
   lazy val common = Project("common", file("common"), settings = buildSettings
-    ++Seq(scalaSource in Compile := file("/home/jim/aca_final/riscv-sodor/src/common")))
+    ++Seq(scalaSource in Compile := file("/home/jim/aca_final/aca_final/riscv-sodor/src/common")))
   lazy val rv32_1stage = Project("rv32_1stage", file("rv32_1stage"), settings = buildSettings ++ chipSettings
-    ++Seq(scalaSource in Compile := file("/home/jim/aca_final/riscv-sodor/src/rv32_1stage"))) dependsOn(common)
+    ++Seq(scalaSource in Compile := file("/home/jim/aca_final/aca_final/riscv-sodor/src/rv32_1stage"))) dependsOn(common)
   lazy val rv32_2stage = Project("rv32_2stage", file("rv32_2stage"), settings = buildSettings ++ chipSettings
-    ++Seq(scalaSource in Compile := file("/home/jim/aca_final/riscv-sodor/src/rv32_2stage"))) dependsOn(common)
+    ++Seq(scalaSource in Compile := file("/home/jim/aca_final/aca_final/riscv-sodor/src/rv32_2stage"))) dependsOn(common)
   lazy val rv32_3stage = Project("rv32_3stage", file("rv32_3stage"), settings = buildSettings ++ chipSettings
-    ++Seq(scalaSource in Compile := file("/home/jim/aca_final/riscv-sodor/src/rv32_3stage"))) dependsOn(common)
+    ++Seq(scalaSource in Compile := file("/home/jim/aca_final/aca_final/riscv-sodor/src/rv32_3stage"))) dependsOn(common)
   lazy val rv32_5stage = Project("rv32_5stage", file("rv32_5stage"), settings = buildSettings ++ chipSettings
-    ++Seq(scalaSource in Compile := file("/home/jim/aca_final/riscv-sodor/src/rv32_5stage"))) dependsOn(common)
+    ++Seq(scalaSource in Compile := file("/home/jim/aca_final/aca_final/riscv-sodor/src/rv32_5stage"))) dependsOn(common)
   lazy val rv32_ucode  = Project("rv32_ucode", file("rv32_ucode"), settings = buildSettings ++ chipSettings
-    ++Seq(scalaSource in Compile := file("/home/jim/aca_final/riscv-sodor/src/rv32_ucode"))) dependsOn(common)
+    ++Seq(scalaSource in Compile := file("/home/jim/aca_final/aca_final/riscv-sodor/src/rv32_ucode"))) dependsOn(common)
 
   val elaborateTask = InputKey[Unit]("elaborate", "convert chisel components into backend source code")
   val makeTask = InputKey[Unit]("make", "trigger backend-specific makefile command")
