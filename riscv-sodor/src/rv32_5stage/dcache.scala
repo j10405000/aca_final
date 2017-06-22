@@ -130,13 +130,12 @@ package object AcaCustom
             mem_is_busy := Bool(false)
         }
 
+        /* Debug: w_queue & is_busy signal
         printf("wqueue_is_full: %x, mem_is_busy: %x\n", w_queue_is_full, mem_is_busy)
         printf("req_addr_reg: %x\nreq_data_reg: %x \nreq_fcn_reg : %x \nreq_typ_reg : %x \n"
-            , req_addr_reg
-            , req_data_reg
-            , req_fcn_reg 
-            , req_typ_reg)
+               , req_addr_reg, req_data_reg, req_fcn_reg , req_typ_reg)
         printf("mem.resp.valid: %x\n", io.mem_port.resp.valid)
+        */
 
         // Define state machine
         val s_idle :: s_load :: Nil = Enum(UInt(),2)
@@ -153,12 +152,14 @@ package object AcaCustom
                     {
                         // Read hit: valid bit = 1 && tag match
                         when(dcache_read_out(DCACHE_BITS-1,DCACHE_BITS-1) === Bits(1,1) 
-                             && dcache_read_out(DCACHE_BITS-1-1,DCACHE_BITS-1-DCACHE_TAG_BIT) === tag
-                             && !w_queue_is_full && !mem_is_busy)
+                             && dcache_read_out(DCACHE_BITS-1-1,DCACHE_BITS-1-DCACHE_TAG_BIT) === tag)
                         {
-                            printf("debug: read hit\n")
-                            io.core_port.resp.valid := Bool(true)
-                            state := s_idle
+                            when( !w_queue_is_full && !mem_is_busy )
+                            {
+                                printf("debug: read hit\n")
+                                io.core_port.resp.valid := Bool(true)
+                                state := s_idle
+                            }
                         }
 
                         // Read miss, load memory
