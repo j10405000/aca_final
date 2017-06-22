@@ -40,68 +40,9 @@ package object AcaCustom
         val req_fcn_reg        = Reg(Bits()) 
         val req_typ_reg        = Reg(Bits()) 
 
-        val w_queue_size       = 16
-        val w_queue_addr       = Mem(Bits(width=32), w_queue_size)
-        val w_queue_data       = Mem(Bits(width=32), w_queue_size)
-        val w_queue_fcn        = Mem(Bits(width=32), w_queue_size)
-        val w_queue_typ        = Mem(Bits(width=32), w_queue_size)
+        val w_queue_count      = Reg(UInt())
         val w_queue_is_full    = Reg(init=Bool(false))
-        val w_queue_is_empty   = Reg(init=Bool(true))
-        val w_header           = Counter(w_queue_size)
-        val w_tail             = Counter(w_queue_size)
         val mem_is_busy        = Reg(init=Bool(false))
-        val last_reg           = Reg(init=Bits(0,2)) //init=0 enqueue=1 dequeue=2
-        //val init_mem           = Reg(init=Bool(false))
-
-        //w_queue_count.inc()
-        printf("w_queue_is_full:%x\nw_queue_is_empty:%x\nw_header:%x\nw_tail :%x\n", 
-                w_queue_is_full,w_queue_is_empty,w_header.value,w_tail.value)
-        
-        when(w_header.value===w_tail.value)
-        {
-            when(last_reg===Bits(1,2))
-            {
-                w_queue_is_full := Bool(true)
-                last_reg := Bits(0,2)
-            }
-            when(last_reg===Bits(2,2))
-            {
-                w_queue_is_empty := Bool(true)
-                last_reg := Bits(0,2)
-            }
-        }
-        /*
-        //enqueue
-        when(!w_queue_is_full_2 && io.core_port.req.valid)
-        {
-            when(!(w_header.value===w_tail.value) || last_reg===Bits(0,2))
-            {
-                w_header.inc()
-
-                w_queue_addr(w_header.value) := req_addr
-                last_reg := Bits(1,2)
-                when(w_queue_is_empty)
-                {
-                    w_queue_is_empty := Bool(false)
-                }
-            }
-        }
-       
-        //dequeue
-        when(!w_queue_is_empty && io.mem_port.resp.valid)
-        {
-            when(!(w_header.value===w_tail.value) || last_reg===Bits(0,2))
-            {
-                w_tail.inc()
-                val output = w_queue_addr(w_tail.value)
-                printf("output: %x\n", output)
-                last_reg := Bits(2,2)
-                when(w_queue_is_full_2)
-                {
-                    w_queue_is_full_2 := Bool(false)
-                }
-            }
-        } */ 
 
         // Generate read data from memory
         val burst_data     = io.mem_port.resp.bits.burst_data
@@ -125,7 +66,7 @@ package object AcaCustom
         */
 
         // Define DCache parameter
-        val DCACHE_ENTRIES = 64
+        val DCACHE_ENTRIES = 1024
         val DCACHE_ENTRIES_BIT = log2Up(DCACHE_ENTRIES)
         val DCACHE_TAG_BIT = conf.xprlen - DCACHE_ENTRIES_BIT - burst_len_bit
         val DCACHE_BITS = 1 + DCACHE_TAG_BIT + burst_len*8
@@ -136,27 +77,16 @@ package object AcaCustom
         val word_offset = req_addr(burst_len_bit-1,2)
         val byte_offset = req_addr(1,0)
 
-        val dcache = Mem(Bits(width=DCACHE_BITS), DCACHE_ENTRIES)
+        val dcache = Vec.fill(DCACHE_ENTRIES) { Reg(Bits(width=DCACHE_BITS)) }
         val dcache_write_data = UInt(width=DCACHE_BITS)
         val dcache_read_out = dcache(index)
         val dcache_read_burst = Vec.fill(16){Bits(width=conf.xprlen)}
         
+        printf("test: %x\n", dcache_read_out(15,0))
+
         val word_data = Bits() 
         val read_data = Bits()
         
-        /* 
-        when(!init_mem)
-        {
-            val dcache_write_data_init = UInt(0)
-            for(i <- 0 until DCACHE_ENTRIES)
-            {
-                dcache.write(UInt(i),dcache_write_data_init)
-                printf("index:%x, data:%x\n", UInt(i),dcache(UInt(i)))
-            }
-            init_mem := Bool(true)
-        }
-        */
-
         // Generate read data
         for(k <- 0 until 16)
             dcache_read_burst(k) := dcache_read_out(32*k+31,32*k) 
@@ -185,25 +115,16 @@ package object AcaCustom
         io.core_port.resp.valid     := Bool(false)
         io.core_port.resp.bits.data := read_data       
 
-        when( !w_queue_is_empty && !mem_is_busy )
+        when( w_queue_is_full && !mem_is_busy )
         {
-            //dequeue
-            when(!(w_header.value===w_tail.value) || last_reg===Bits(0,2))
-            {
-                w_tail.inc()
-                io.mem_port.req.valid     := Bool(true)
-                io.mem_port.req.bits.addr := w_queue_addr(w_tail.value)
-                io.mem_port.req.bits.data := w_queue_data(w_tail.value)
-                io.mem_port.req.bits.fcn  := w_queue_fcn(w_tail.value)
-                io.mem_port.req.bits.typ  := w_queue_typ(w_tail.value)
-                
-                last_reg := Bits(2,2)
-                when(w_queue_is_full)
-                {
-                    w_queue_is_full := Bool(false)
-                }
-                mem_is_busy := Bool(true)
-            }
+            io.mem_port.req.valid     := Bool(true)
+            io.mem_port.req.bits.addr := req_addr_reg
+            io.mem_port.req.bits.data := req_data_reg
+            io.mem_port.req.bits.fcn  := req_fcn_reg 
+            io.mem_port.req.bits.typ  := req_typ_reg
+
+            w_queue_is_full := Bool(false)
+            mem_is_busy := Bool(true)
         }
 
         when( mem_is_busy && io.mem_port.resp.valid)
@@ -235,7 +156,7 @@ package object AcaCustom
                         when(dcache_read_out(DCACHE_BITS-1,DCACHE_BITS-1) === Bits(1,1) 
                              && dcache_read_out(DCACHE_BITS-1-1,DCACHE_BITS-1-DCACHE_TAG_BIT) === tag)
                         {
-                            when( w_queue_is_empty && !mem_is_busy )
+                            when( !w_queue_is_full && !mem_is_busy )
                             {
                                 printf("debug: read hit\n")
                                 io.core_port.resp.valid := Bool(true)
@@ -247,7 +168,7 @@ package object AcaCustom
                         .otherwise
                         {
                             printf("debug: read miss\n")
-                            when( w_queue_is_empty && !mem_is_busy )
+                            when( !w_queue_is_full && !mem_is_busy )
                             {
                                 io.mem_port.req.valid := Bool(true)
                                 mem_is_busy := Bool(true)
@@ -264,7 +185,7 @@ package object AcaCustom
                              && dcache_read_out(DCACHE_BITS-1-1,DCACHE_BITS-1-DCACHE_TAG_BIT) === tag))
                         {
                             printf("debug: write miss\n")
-                            when( w_queue_is_empty && !mem_is_busy )
+                            when( !w_queue_is_full && !mem_is_busy )
                             {
                                 io.mem_port.req.valid := Bool(true)
                                 mem_is_busy := Bool(true)
@@ -280,24 +201,15 @@ package object AcaCustom
 
                             when(!w_queue_is_full)
                             {
-                                //enqueue
-                                when(!(w_header.value===w_tail.value) || last_reg===Bits(0,2))
-                                {   
-                                    w_header.inc()
-
-                                    w_queue_addr.write(w_header.value,req_addr)
-                                    w_queue_data.write(w_header.value,req_data)  
-                                    w_queue_fcn.write(w_header.value,req_fcn)
-                                    w_queue_typ.write(w_header.value,req_typ)
-
-                                    last_reg := Bits(1,2)
-                                    when(w_queue_is_empty)
-                                    {   
-                                        w_queue_is_empty := Bool(false)
-                                    }   
-                                    dcache.write(index, wdata, write_mask)
-                                    io.core_port.resp.valid := Bool(true)
-                                }
+                                req_addr_reg       := io.core_port.req.bits.addr
+                                req_data_reg       := io.core_port.req.bits.data 
+                                req_fcn_reg        := io.core_port.req.bits.fcn  
+                                req_typ_reg        := io.core_port.req.bits.typ  
+                                w_queue_is_full    := Bool(true)
+                                io.core_port.resp.valid := Bool(true)
+                                //val write_buffer = (dcache_read_out & !(write_mask)) & ( wdata & write_mask)
+                                val write_buffer = Bits(0)
+                                dcache(index) := write_buffer
                             }
                         }
                     }
@@ -310,7 +222,7 @@ package object AcaCustom
                 printf("state: s_load\n")
                 when ( io.mem_port.resp.valid )
                 {   
-                    dcache.write(index, dcache_write_data)
+                    dcache(index) := dcache_write_data
                     //printf("Debug: dcache_write_data: %x\n", dcache_write_data)
                     state := s_idle
                 }
@@ -330,6 +242,7 @@ package object AcaCustom
                     Mux(typ === MT_B,  Cat(Fill(24, data(7)),    data(7,0)),
                     Mux(typ === MT_BU, Cat(Fill(24, UInt(0x0)), data(7,0)), 
                                         data(31,0)))))                      
+                                                                            
           return out                                                        
        }                                                                    
     }
