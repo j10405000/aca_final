@@ -35,15 +35,6 @@ package object AcaCustom
         val req_fcn        = io.core_port.req.bits.fcn
         val req_typ        = io.core_port.req.bits.typ
 
-        val req_addr_reg       = Reg(Bits())
-        val req_data_reg       = Reg(Bits()) 
-        val req_fcn_reg        = Reg(Bits()) 
-        val req_typ_reg        = Reg(Bits()) 
-
-        val w_queue_count      = Reg(UInt())
-        val w_queue_is_full    = Reg(init=Bool(false))
-        val mem_is_busy        = Reg(init=Bool(false))
-
         // Generate read data from memory
         val burst_data     = io.mem_port.resp.bits.burst_data
         val word_idx_in_burst = req_addr(burst_len_bit - 1, word_len_bit)
@@ -108,34 +99,10 @@ package object AcaCustom
         io.mem_port.req.valid := Bool(false)
         io.mem_port.req.bits.addr := io.core_port.req.bits.addr
         io.mem_port.req.bits.data := io.core_port.req.bits.data
-        io.mem_port.req.bits.fcn  := io.core_port.req.bits.fcn
-        io.mem_port.req.bits.typ  := io.core_port.req.bits.typ
-        io.core_port.resp.valid     := Bool(false)
+        io.mem_port.req.bits.fcn := io.core_port.req.bits.fcn
+        io.mem_port.req.bits.typ := io.core_port.req.bits.typ
+        io.core_port.resp.valid := Bool(false)
         io.core_port.resp.bits.data := read_data       
-
-        when( w_queue_is_full && !mem_is_busy )
-        {
-            io.mem_port.req.valid     := Bool(true)
-            io.mem_port.req.bits.addr := req_addr_reg
-            io.mem_port.req.bits.data := req_data_reg
-            io.mem_port.req.bits.fcn  := req_fcn_reg 
-            io.mem_port.req.bits.typ  := req_typ_reg
-
-            w_queue_is_full := Bool(false)
-            mem_is_busy := Bool(true)
-        }
-
-        when( mem_is_busy && io.mem_port.resp.valid)
-        {
-            mem_is_busy := Bool(false)
-        }
-
-        /* Debug: w_queue & is_busy signal
-        printf("wqueue_is_full: %x, mem_is_busy: %x\n", w_queue_is_full, mem_is_busy)
-        printf("req_addr_reg: %x\nreq_data_reg: %x \nreq_fcn_reg : %x \nreq_typ_reg : %x \n"
-               , req_addr_reg, req_data_reg, req_fcn_reg , req_typ_reg)
-        printf("mem.resp.valid: %x\n", io.mem_port.resp.valid)
-        */
 
         // Define state machine
         val s_idle :: s_load :: Nil = Enum(UInt(),2)
@@ -154,24 +121,17 @@ package object AcaCustom
                         when(dcache_read_out(DCACHE_BITS-1,DCACHE_BITS-1) === Bits(1,1) 
                              && dcache_read_out(DCACHE_BITS-1-1,DCACHE_BITS-1-DCACHE_TAG_BIT) === tag)
                         {
-                            when( !w_queue_is_full && !mem_is_busy )
-                            {
-                                printf("debug: read hit\n")
-                                io.core_port.resp.valid := Bool(true)
-                                state := s_idle
-                            }
+                            printf("debug: read hit\n")
+                            io.core_port.resp.valid := Bool(true)
+                            state := s_idle
                         }
 
                         // Read miss, load memory
                         .otherwise
                         {
                             printf("debug: read miss\n")
-                            when( !w_queue_is_full && !mem_is_busy )
-                            {
-                                io.mem_port.req.valid := Bool(true)
-                                mem_is_busy := Bool(true)
-                                state := s_load
-                            }
+                            io.mem_port.req.valid := Bool(true)
+                            state := s_load
                         }
                     }
 
@@ -183,12 +143,8 @@ package object AcaCustom
                              && dcache_read_out(DCACHE_BITS-1-1,DCACHE_BITS-1-DCACHE_TAG_BIT) === tag))
                         {
                             printf("debug: write miss\n")
-                            when( !w_queue_is_full && !mem_is_busy )
-                            {
-                                io.mem_port.req.valid := Bool(true)
-                                mem_is_busy := Bool(true)
-                                state := s_load
-                            }
+                            io.mem_port.req.valid := Bool(true)
+                            state := s_load
                         }
 
                         // Write hit
@@ -196,16 +152,12 @@ package object AcaCustom
                         {
                             printf("debug: write hit\n")
                             //write memory
-
-                            when(!w_queue_is_full)
+                            io.mem_port.req.valid := Bool(true)
+                            
+                            when ( io.mem_port.resp.valid )
                             {
-                                req_addr_reg       := io.core_port.req.bits.addr
-                                req_data_reg       := io.core_port.req.bits.data 
-                                req_fcn_reg        := io.core_port.req.bits.fcn  
-                                req_typ_reg        := io.core_port.req.bits.typ  
-                                w_queue_is_full    := Bool(true)
-                                dcache.write(index, wdata, write_mask)
                                 io.core_port.resp.valid := Bool(true)
+                                dcache.write(index, wdata, write_mask)
                             }
                         }
                     }
@@ -220,6 +172,11 @@ package object AcaCustom
                 {   
                     dcache.write(index, dcache_write_data)
                     //printf("Debug: dcache_write_data: %x\n", dcache_write_data)
+                    when ( io.core_port.req.bits.fcn === M_XWR )
+                    {
+                        printf("debug: write hit\n")
+                        io.core_port.resp.valid := Bool(true)
+                    }
                     state := s_idle
                 }
             }
